@@ -13,19 +13,18 @@ from operator import itemgetter
 import time
 
 # Project Information
-print '############################################################################################'
-print 'Project: Optimal Rebalancing Strategy Using Dynamic Programming for Institutional Portfolios'
-print '############################################################################################'
-print ' '
+print('############################################################################################')
+print('Project: Optimal Rebalancing Strategy Using Dynamic Programming for Institutional Portfolios')
+print('############################################################################################')
 
 # Start Timer to measure Total Run Time of Script
-t0 = time.clock()
+t0 = time.process_time()
 
 ####################################################################################################################
 # CALCULATE OPTIMAL PORTFOLIO WEIGHT - EFFICIENT FRONTIER MEAN-VARIANCE OPTIMIZATION
 
 # Create Pandas Dataframe and read in prices of 2 assets
-pd.set_option('display.line_width', 300)
+# pd.set_option('display.line_width', 300)
 #Load csv with Websites on the dataframe
 Data = pd.read_csv('Data.csv')
 
@@ -74,7 +73,7 @@ for i in range(0,int(1 / detail)):
     wA = wA + detail  
 
 # Print the calculated Optimal Portfolio Weight    
-print 'Optimal Portfolio Weight According to Efficient Frontier Using Mean-Variance Optimization: ' + str(Optimal_WeightA)
+print('Optimal Portfolio Weight According to Efficient Frontier Using Mean-Variance Optimization: ' + str(Optimal_WeightA))
 
 # Plot Efficient Frontier using Mean Variance Optimization
 #plt.plot(A['WeightA'] ,A['Variance'])
@@ -122,8 +121,7 @@ for i in range(1,len(Data)):
     CData['CEC'][i] = (math.exp(CData['Expected_Utility_Optimal'][i]) - math.exp(CData['Expected_Utility_Current'][i]))*10*initial_amount_invested
 
 # Print the cost of not rebalancing the portfolio to the Optimal Weight and letting it drift according to market prices
-print 'Cost of not rebalancing to Optimal Portfolio Weight: ' + str(np.abs(np.sum(CData['CEC'])))
-print ' '
+print('Cost of not rebalancing to Optimal Portfolio Weight: ' + str(np.abs(np.sum(CData['CEC']))))
 
 # Plot WeightA Change over time
 #CData['WeightA'].plot()
@@ -218,7 +216,7 @@ for line1 in range(1,len(Data)):
     Data['CEC'][line1] = Cost_Min['CEC'][min(enumerate(Cost_Min['Costs'][1:len(Cost_Min)]), key=itemgetter(1))[0]]
     
     # Print a string showing where in time we currently are (how many datapoints have been calculated)   
-    print 'Finished with ' + str(line1) + ' out of ' + str(len(Data)-1) + ' Datapoints'
+    print('Finished with ' + str(line1) + ' out of ' + str(len(Data)-1) + ' Datapoints')
 
     
 Data['New_WeightA'] = Data['WeightA']
@@ -254,11 +252,11 @@ for line1 in range(1,len(Data)):
 #plt.show()
 
 # Plot Weight with Dynamic Programming Rebalancing
-#Data['New_WeightA'].plot()
-#plt.title('PD Rebalancing')
-#plt.xlabel('Days')
-#plt.ylabel('Weight of Asset A (Developed Market Index)')
-#plt.show()
+Data['New_WeightA'].plot()
+plt.title('PD Rebalancing')
+plt.xlabel('Days')
+plt.ylabel('Weight of Asset A (Developed Market Index)')
+plt.show()
 
 #  Calculate Total Costs of Rebalancing using Dynamic Programming
 TC_DM = 0.0
@@ -266,11 +264,10 @@ for i in range(1,len(Data)):
     if Data['Rebalance'][i] == 1:
         TC_DM = TC_DM + Data['TC'][i]*1000
 
-print ' '
-print 'Total Costs of Rebalancing using Dynamic Programming ' + str(TC_DM)
+print('Total Costs of Rebalancing using Dynamic Programming ' + str(TC_DM))
 
 # Save output file to current directory
 Data.to_csv('Optimal.csv')
 
 # Print Time it Took to Run Code
-print 'Total Run Time: ' + str(time.clock() - t0,)
+print('Total Run Time: ' + str(time.clock() - t0,))

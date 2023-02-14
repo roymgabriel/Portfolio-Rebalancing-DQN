@@ -121,8 +121,7 @@ class PortfolioRebalancerEnv(gym.Env):
 
         # Calculate the Certainty Equivalent Costs in the particular period (i.e. cost of not rebalancing to Optimal
         # Portfolio)
-        certainty_equivalent_cost = math.exp(expected_utility_optimal - expected_utility_current) * \
-                                    self.initial_amount_invested
+        certainty_equivalent_cost = math.exp(expected_utility_optimal - expected_utility_current)
 
         # TODO: Calculate the Transaction Costs to be incurred if rebalancing is to take place
         # TODO: ideally change this to linear algebra of TC.T.dot(abs(diff))
@@ -137,11 +136,9 @@ class PortfolioRebalancerEnv(gym.Env):
                 # TODO: need to account for multiple weights (now it considers two assets)
                 current_transaction_cost += self.transaction_costs[i] * (math.fabs((1 - self.w_optimal) - (1 - self.state)))
 
-        # print(current_transaction_cost)
-        # print(certainty_equivalent_cost)
         if not terminated:
             # Calculate Total Costs to be incurred if rebalancing is to take place
-            total_cost = certainty_equivalent_cost + current_transaction_cost
+            total_cost = (certainty_equivalent_cost + current_transaction_cost) * self.initial_amount_invested
         elif self.steps_beyond_terminated is None:
             # weights exceeded 20/80 % threshold
             self.steps_beyond_terminated = 0

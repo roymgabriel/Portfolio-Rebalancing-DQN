@@ -18,6 +18,7 @@ class PortfolioRebalancerEnv(gym.Env):
     """
 
     # TODO: Will calculate optimal min variance portfolio weight outside this class
+    # TODO: Right now it calculates optimal portfolio with constant mean and variance
     def __init__(self,
                  mu: Union[np.float32, np.ndarray, list],
                  sigma_optimal: np.float32,
@@ -36,9 +37,12 @@ class PortfolioRebalancerEnv(gym.Env):
         # TODO: Might want to calculate var, mean outside of class
 
         # define action parameters
-        action_range = np.linspace(action_range_min, action_range_max, num_actions)
+        self.action_space = np.linspace(action_range_min, action_range_max, num_actions, dtype=np.float32)
 
-        self.action_space = spaces.Discrete(num_actions)
+        # self.action_space = spaces.Discrete(num_actions)
+
+        self.num_actions = num_actions
+        # self.action_space = spaces.Box(low=action_range_min, high=action_range_max, shape=(1,), dtype=np.float32)
 
         # define state space (observation space)
         high = np.array([w_max], dtype=np.float32)
@@ -70,8 +74,10 @@ class PortfolioRebalancerEnv(gym.Env):
         # define transaction costs array
         self.transaction_costs = transaction_costs
 
-        # define number of asssets
+        # define number of assets
         self.n_assets = n_assets
+
+
 
 
     def seed(self, seed=None):
@@ -91,7 +97,7 @@ class PortfolioRebalancerEnv(gym.Env):
         :return:
         """
         err_msg = f"{action!r} ({type(action)}) invalid"
-        assert self.action_space.contains(action), err_msg
+        assert action in self.action_space, err_msg
         assert self.state is not None, "Call reset before using step method."
 
         # TODO: Do some calculations using current weight (need to account for other assets)
@@ -119,13 +125,9 @@ class PortfolioRebalancerEnv(gym.Env):
                                     self.initial_amount_invested
 
         # TODO: Calculate the Transaction Costs to be incurred if rebalancing is to take place
-        # Cost_Min['TC'][line2] = (self.CA * math.fabs(Optimal_WeightA - (Cost_Min['WeightA'][line2])) + CB * math.fabs(
-        #             (1 - Optimal_WeightA) - (1 - (Cost_Min['WeightA'][line2]))))
-
-        # current_transaction_cost = self.transaction_costs.T.dot(math.fabs(self.w_optimal - self.state))
         # TODO: ideally change this to linear algebra of TC.T.dot(abs(diff))
         current_transaction_cost = 0
-        for i, asset in enumerate(self.n_assets):
+        for i, asset in enumerate(range(self.n_assets)):
             # if first asset
             if i == 0:
                 # since self.state corresponds to asset A weight (for now)
@@ -135,9 +137,8 @@ class PortfolioRebalancerEnv(gym.Env):
                 # TODO: need to account for multiple weights (now it considers two assets)
                 current_transaction_cost += self.transaction_costs[i] * (math.fabs((1 - self.w_optimal) - (1 - self.state)))
 
-
-
-
+        # print(current_transaction_cost)
+        # print(certainty_equivalent_cost)
         if not terminated:
             # Calculate Total Costs to be incurred if rebalancing is to take place
             total_cost = certainty_equivalent_cost + current_transaction_cost
@@ -162,6 +163,7 @@ class PortfolioRebalancerEnv(gym.Env):
             # reset the cost
             total_cost = 0.0
 
+        # reward calculation
         reward = - total_cost
 
         return np.array(self.state, dtype=np.float32), reward, terminated
@@ -178,5 +180,5 @@ class PortfolioRebalancerEnv(gym.Env):
         return np.array(self.state, dtype=np.float32), {}
 
 
-    def render(self, mode="human"):
-        pass
+    # def render(self, mode="human"):
+    #     pass

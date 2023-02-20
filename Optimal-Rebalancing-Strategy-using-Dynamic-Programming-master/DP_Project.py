@@ -189,6 +189,7 @@ for line1 in range(1,len(Data)):
     
         # Calculate the Transaction Costs to be incurred if rebalancing is to take place
         # SY: always rebalance to the minimum variance portfolio Optimal_WeightA
+        # SY: The TC is inconsistent with the later relance go-to weight Data['New_WeightA'][line1+1] = Data['Min_Cost_Weight'][line1]
         Cost_Min['TC'][line2] =  (CA*math.fabs(Optimal_WeightA-(Cost_Min['WeightA'][line2])) + CB*math.fabs((1-Optimal_WeightA)-(1-(Cost_Min['WeightA'][line2]))))
         
         # Calculate Total Costs to be incurred if rebalancing is to take place

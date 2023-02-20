@@ -65,7 +65,7 @@ for i in range(0,int(1 / detail)):
     try:
         # Check if next point Variance is lower than previous one (if it is keep the weight at which this occurs)
         if A['Variance'][i] < A['Variance'][i-1]:
-            Optimal_WeightA = A['WeightA'][i]
+            Optimal_WeightA = A['WeightA'][i]  # SY comment: this is finding the minimum
     except:
         pass
         
@@ -74,13 +74,14 @@ for i in range(0,int(1 / detail)):
 
 # Print the calculated Optimal Portfolio Weight    
 print('Optimal Portfolio Weight According to Efficient Frontier Using Mean-Variance Optimization: ' + str(Optimal_WeightA))
+# SY comment: this is actually just the minimum variance portfolio
 
 # Plot Efficient Frontier using Mean Variance Optimization
-#plt.plot(A['WeightA'] ,A['Variance'])
-#plt.title('Efficient Frontier using Mean-Variance Optimization')
-#plt.xlabel('Weight of Asset A (Developed Market Index)')
-#plt.ylabel('Variance')
-#plt.show()
+plt.plot(A['WeightA'] ,A['Variance'])
+plt.title('Efficient Frontier using Mean-Variance Optimization')
+plt.xlabel('Weight of Asset A (Developed Market Index)')
+plt.ylabel('Variance')
+plt.show()
 
 ####################################################################################################################
 # NO REBALANCING - Calculate Investment Parameters of Portfolio if Optimal Weight is selected in period 0 and then weights are left to drift according to market prices
@@ -106,10 +107,12 @@ for i in range(1,len(Data)):
     # Calculate the Total Return of the Portfolio in the period
     CData['Total_Returns'][i] = (CData['InvestmentA'][i]+CData['InvestmentB'][i])/(CData['InvestmentA'][i-1]+CData['InvestmentB'][i-1])-1
     # Calculate the Expected Utility
+    # SY comment: CData['Variance'] has bug - it is all zero constant now
     CData['Expected_Utility_Current'][i] = math.log10(1+np.mean(CData['Total_Returns'][0:i]))- \
                                             CData['Variance'][i]/(2*((1+np.mean(CData['Total_Returns'][0:i]))**2))
     
     #Calculate the Variance of the Portfolio if the weight was Optimal (i.e. calculated using Mean Variance before)
+    # SY comment: bug - CData['WeightA'][i] should be Optimal_WeightA; I also don't understand why Total_Returns is needed
     CData['Variance_Optimal'][i] = ((CData['Returns_A'][i]-CData['Total_Returns'][i])**2)*(Optimal_WeightA**2) + \
                                                 ((CData['Returns_B'][i]-CData['Total_Returns'][i])**2)*((1-Optimal_WeightA)**2) + \
                                                 2*(1-Optimal_WeightA)*CData['WeightA'][i]*Covariance_Matrix[1,0]            
@@ -124,11 +127,11 @@ for i in range(1,len(Data)):
 print('Cost of not rebalancing to Optimal Portfolio Weight: ' + str(np.abs(np.sum(CData['CEC']))))
 
 # Plot WeightA Change over time
-#CData['WeightA'].plot()
-#plt.title('No Rebalancing')
-#plt.xlabel('Days')
-#plt.ylabel('Weight of Asset A (Developed Market Index)')
-#plt.show()
+CData['WeightA'].plot()
+plt.title('No Rebalancing')
+plt.xlabel('Days')
+plt.ylabel('Weight of Asset A (Developed Market Index)')
+plt.show()
 
 ####################################################################################################################
 # DYNAMIC PROGRAMMIN REBALANCING
@@ -173,6 +176,7 @@ for line1 in range(1,len(Data)):
                                                 Cost_Min['Variance_Current'][line2]/(2*((1+np.mean(CData['Total_Returns'][0:line1]))**2))
             
         # Calculate the Variance if the Optimal Portfolio Weight was Selected   
+        # SY comment: Cost_Min['WeightA'][line2] should be Optimal_WeightA
         Cost_Min['Variance_Optimal'][line2] = ((Cost_Min['Returns_A'][line2]-Cost_Min['Total_Returns'][line2])**2)*(Optimal_WeightA**2) + \
                                                 ((Cost_Min['Returns_B'][line2]-Cost_Min['Total_Returns'][line2])**2)*((1-Optimal_WeightA)**2) + \
                                                 2*(1-Optimal_WeightA)*Cost_Min['WeightA'][line2]*Covariance_Matrix[1,0]            
@@ -184,19 +188,20 @@ for line1 in range(1,len(Data)):
         Cost_Min['CEC'][line2] = (math.exp(Cost_Min['Expected_Utility_Optimal'][line2]) - math.exp(Cost_Min['Expected_Utility_Current'][line2]))*initial_amount_invested
     
         # Calculate the Transaction Costs to be incurred if rebalancing is to take place
+        # SY: always rebalance to the minimum variance portfolio Optimal_WeightA
         Cost_Min['TC'][line2] =  (CA*math.fabs(Optimal_WeightA-(Cost_Min['WeightA'][line2])) + CB*math.fabs((1-Optimal_WeightA)-(1-(Cost_Min['WeightA'][line2]))))
         
         # Calculate Total Costs to be incurred if rebalancing is to take place
         Cost_Min['Costs'][line2] = Cost_Min['CEC'][line2] + Cost_Min['TC'][line2]
     
     
-    #plt.plot(Cost_Min['WeightA'],Cost_Min['CEC'])
-    #plt.plot(Cost_Min['WeightA'],Cost_Min['TC'])
-    #plt.title('Rebalancing Selection Band')
-    #plt.xlabel('Portfolio Weight of Asset A (Developed Market Index)')
-    #plt.ylabel('Basis Points')
-    #plt.legend(['CEC','TC'])
-    #plt.show()
+    plt.plot(Cost_Min['WeightA'],Cost_Min['CEC'])
+    plt.plot(Cost_Min['WeightA'],Cost_Min['TC'])
+    plt.title('Rebalancing Selection Band')
+    plt.xlabel('Portfolio Weight of Asset A (Developed Market Index)')
+    plt.ylabel('Basis Points')
+    plt.legend(['CEC','TC'])
+    plt.show()
     
     # Caclulate the low and high threshold above and below which total costs of rebalancing are negative (i.e. profit from rebalancing) 
     for line2 in range(min(enumerate(Cost_Min['Costs']), key=itemgetter(1))[0],len(Cost_Min)-1):
@@ -224,6 +229,7 @@ Data['New_WeightA'] = Data['WeightA']
 # Account for Future Costs in Rebalancing Decision        
 Data['Total_Costs'][len(Data)-1] = Data['TC'][len(Data)-1] + Data['CEC'][len(Data)-1]
 for line1 in range(len(Data)-2,1,-1):
+    # SY comment: bug here? Data['Total_Costs'][line1-1] is always 0
     Data['Total_Costs'][line1] = Data['TC'][line1] + Data['CEC'][line1] + Data['Total_Costs'][line1-1]
 
 # If the Current Weight is Below the Lower Threshold / Above the Higher Threshold, Rebalance taking into account the Costs of the Next Period    
@@ -232,6 +238,7 @@ for line1 in range(1,len(Data)):
         Data['Rebalance'][line1] = 0   
     else:
         Data['Rebalance'][line1] = 1
+        # SY comment: Data['Min_Cost_Weight'] is crutial - it tells which wgt to rebalance to
         Data['New_WeightA'][line1+1] = Data['Min_Cost_Weight'][line1]
         Data['InvestmentA'][line1+1] = Data['New_WeightA'][line1+1]*(Data['InvestmentA'][line1]+Data['InvestmentB'][line1])
         Data['InvestmentB'][line1+1] = (1-Data['New_WeightA'][line1+1])*(Data['InvestmentA'][line1]+Data['InvestmentB'][line1])
@@ -243,13 +250,13 @@ for line1 in range(1,len(Data)):
 
 
 # Plot Weight Minimising Costs vs. Weight without Rebalancing
-#Data['WeightA'].plot()
-#Data['Min_Cost_Weight'].plot()
-#plt.title('No Rebalancing Weight vs Minimum Cost Weight')
-#plt.xlabel('Days')
-#plt.ylabel('Weight')
-#plt.legend(['No-Rebalancing Weight','Minimum Cost Weight'], loc='upper left')
-#plt.show()
+Data['WeightA'].plot()
+Data['Min_Cost_Weight'].plot()
+plt.title('No Rebalancing Weight vs Minimum Cost Weight')
+plt.xlabel('Days')
+plt.ylabel('Weight')
+plt.legend(['No-Rebalancing Weight','Minimum Cost Weight'], loc='upper left')
+plt.show()
 
 # Plot Weight with Dynamic Programming Rebalancing
 Data['New_WeightA'].plot()
@@ -270,4 +277,4 @@ print('Total Costs of Rebalancing using Dynamic Programming ' + str(TC_DM))
 Data.to_csv('Optimal.csv')
 
 # Print Time it Took to Run Code
-print('Total Run Time: ' + str(time.clock() - t0,))
+print('Total Run Time: ' + str(time.process_time() - t0,))

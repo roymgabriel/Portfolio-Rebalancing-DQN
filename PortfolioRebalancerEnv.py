@@ -16,9 +16,6 @@ class PortfolioRebalancerEnv(gym.Env):
 
 
     """
-
-    # TODO: Will calculate optimal min variance portfolio weight outside this class
-    # TODO: Right now it calculates optimal portfolio with constant mean and variance
     def __init__(self,
                  mu: Union[np.float32, np.ndarray, list],
                  sigma_optimal: np.float32,
@@ -33,8 +30,6 @@ class PortfolioRebalancerEnv(gym.Env):
                  w_min: np.float32 = 0.2,
                  w_max: np.float32 = 0.8
                  ):
-
-        # TODO: Might want to calculate var, mean outside of class
 
         # define action parameters
         self.action_space = np.linspace(action_range_min, action_range_max, num_actions, dtype=np.float32)
@@ -105,7 +100,7 @@ class PortfolioRebalancerEnv(gym.Env):
         # set new state as the new weight due to change in market price
         self.state += action
 
-        # TODO: Need to define termination conditions
+        # TODO: Should we add a termination state where we hit optimal weight?
         # Maybe if weights exceed 20 and 80 percent
         terminated = True if any((self.state < self.w_min) or (self.state > self.w_max)) else False
 
@@ -136,6 +131,7 @@ class PortfolioRebalancerEnv(gym.Env):
                 # TODO: need to account for multiple weights (now it considers two assets)
                 current_transaction_cost += self.transaction_costs[i] * (math.fabs((1 - self.w_optimal) - (1 - self.state)))
 
+        # TODO: need to account to change in stock prices to see how investment changes to see if rebalancing occurs
         if not terminated:
             # Calculate Total Costs to be incurred if rebalancing is to take place
             total_cost = (certainty_equivalent_cost + current_transaction_cost) * self.initial_amount_invested

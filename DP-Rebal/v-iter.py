@@ -3,6 +3,7 @@ import pandas as pd
 import datetime as dt
 from scipy.optimize import minimize
 import scipy
+import random
 
 
 def cost_turnover(cost_vec, wgt_orig, wgt_target):
@@ -144,3 +145,68 @@ for dummy in range(200):
 # Q(s, a) = Q(s, a) + alpha * (r + gamma * max_a' Q(s', a') - Q(s, a))
 # where alpha is the learning rate (a small positive value that determines the weight given to new observations), r is the reward received for taking action a in state s,
 # gamma is the discount factor (a value between 0 and 1 that determines the importance of future rewards), s' is the next state, and a' is the optimal action to take in state s' (according to the current Q-values).
+# We can use an epsilon-greedy policy to select actions during the learning process. With probability epsilon, the agent selects a random action (exploration), and with probability 1 - epsilon, the agent selects the action with the highest Q-value (exploitation).
+class Qlearning(BellmanValue):
+    # same assumption for constant mu and sigma_mat
+    def __init__(self, mu, sigma_mat, transaction_cost, gamma, epsilon=0.1, learning_rate=0.1):
+        super().__init__(mu, sigma_mat, transaction_cost, gamma)
+        self.epsilon = epsilon
+        self.learning_rate = learning_rate
+        self.num_actions = self.action_possible.shape[0]
+        self.num_states = self.state_possible.shape[0]
+        for state_id in range(self.num_states):
+            state = self.state_possible[state_id]
+            self.q_table[state_id, np.argwhere(np.any(state + self.action_possible <= 0, axis=1))] = -np.inf
+
+    def get_next_state(self, state, action):
+        new_state = state + action
+        random_ret = np.random.multivariate_normal(self.mu, self.sigma_mat, size=1)
+        new_state = new_state * (1+random_ret)
+        new_state = new_state / np.sum(new_state) * 100
+        new_state = np.round(new_state)
+        new_state = (new_state / np.sum(new_state) * 100)
+        new_state = np.round(new_state).astype(int)
+        return new_state
+
+    def q_learning_once(self, state_id):
+        state_wgt = self.state_possible[state_id, :]
+
+        if random.uniform(0, 1) < self.epsilon:
+            action_feasible = np.argwhere(self.q_table[state_id, :] > -np.inf).reshape([-1])
+            action_id = np.random.choice(action_feasible, 1).item()
+        else:
+            action_id = np.argmax(self.q_table[state_id, :])
+        action = self.action_possible[action_id, :]
+
+        # Get the next state and reward
+        next_state = self.get_next_state(state_wgt, action)
+        next_state_id = np.argwhere(np.all(self.state_possible == next_state, axis=1)).item()
+        reward = -expected_cost_total(state_wgt/100, action/100, self.mu, self.sigma_mat, self.transaction_cost)
+        update_amount = reward + self.gamma * np.max(self.q_table[next_state_id, :]) - self.q_table[state_id, action_id]
+        self.q_table[next_state_id, action] += self.learning_rate * update_amount
+
+        return next_state_id
+
+
+mu = np.array([50, 200]) / 1e4
+sigma = np.array([300, 800]) / 1e4
+cov = np.diag(sigma ** 2)
+start = dt.datetime(2000, 1, 1)
+end = dt.datetime(2019, 12, 31)
+dates = pd.date_range(start, end, freq="M")
+ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
+ret_df = pd.DataFrame(ret, index=dates)
+trans_cost = 10/1e4
+
+self = qlearner = Qlearning(mu, cov, trans_cost, gamma=0.9, epsilon=0.1, learning_rate=0.1)
+
+qlearner.q_table
+
+num_episodes = 1000
+max_steps_per_episode = 100
+
+for i in range(num_episodes):
+    current_state = random.randint(0, qlearner.num_states - 1)
+    for j in range(max_steps_per_episode):
+        current_state = qlearner.q_learning_once(current_state)
+

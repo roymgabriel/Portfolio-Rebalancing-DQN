@@ -183,30 +183,34 @@ class Qlearning(BellmanValue):
         next_state_id = np.argwhere(np.all(self.state_possible == next_state, axis=1)).item()
         reward = -expected_cost_total(state_wgt/100, action/100, self.mu, self.sigma_mat, self.transaction_cost)
         update_amount = reward + self.gamma * np.max(self.q_table[next_state_id, :]) - self.q_table[state_id, action_id]
-        self.q_table[next_state_id, action] += self.learning_rate * update_amount
+        self.q_table[state_id, action] += self.learning_rate * update_amount
 
         return next_state_id
 
+    def set_value_fun_from_q_table(self):
+        for state_id in range(self.state_possible.shape[0]):
+            self.value_table[state_id] = np.max(self.q_table[state_id, :])
 
-mu = np.array([50, 200]) / 1e4
-sigma = np.array([300, 800]) / 1e4
-cov = np.diag(sigma ** 2)
-start = dt.datetime(2000, 1, 1)
-end = dt.datetime(2019, 12, 31)
-dates = pd.date_range(start, end, freq="M")
-ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
-ret_df = pd.DataFrame(ret, index=dates)
-trans_cost = 10/1e4
 
 self = qlearner = Qlearning(mu, cov, trans_cost, gamma=0.9, epsilon=0.1, learning_rate=0.1)
-
-qlearner.q_table
 
 num_episodes = 1000
 max_steps_per_episode = 100
 
 for i in range(num_episodes):
+    print("Epoch {}".format(i))
     current_state = random.randint(0, qlearner.num_states - 1)
     for j in range(max_steps_per_episode):
         current_state = qlearner.q_learning_once(current_state)
 
+qlearner.q_table
+qlearner.set_value_fun_from_q_table()
+qlearner.value_table
+bell.value_table
+
+from matplotlib import pyplot as plt
+plt.plot(bell.value_table)
+plt.show()
+
+plt.plot(qlearner.value_table)
+plt.show()

@@ -160,12 +160,13 @@ class Qlearning(BellmanValue):
 
     def get_next_state(self, state, action):
         new_state = state + action
-        random_ret = np.random.multivariate_normal(self.mu, self.sigma_mat, size=1)
-        new_state = new_state * (1+random_ret)
-        new_state = new_state / np.sum(new_state) * 100
-        new_state = np.round(new_state)
-        new_state = (new_state / np.sum(new_state) * 100)
-        new_state = np.round(new_state).astype(int)
+        # remove stochastic component to be consistent with the value iteration because value iteration hasn't considered the weight renormalization
+        # random_ret = np.random.multivariate_normal(self.mu, self.sigma_mat, size=1)
+        # new_state = new_state * (1+random_ret)
+        # new_state = new_state / np.sum(new_state) * 100
+        # new_state = np.round(new_state)
+        # new_state = (new_state / np.sum(new_state) * 100)
+        # new_state = np.round(new_state).astype(int)
         return new_state
 
     def q_learning_once(self, state_id):

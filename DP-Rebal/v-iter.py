@@ -5,28 +5,6 @@ from scipy.optimize import minimize
 import scipy
 
 
-def setup():
-    data_ret = pd.read_csv('Data.csv')
-
-    # Calculate Daily Returns for Assets A & B using Vectoring
-    data_ret['Returns_A'] = data_ret['Close_A']/data_ret['Close_A'].shift(1)-1
-    data_ret['Returns_B'] = data_ret['Close_B']/data_ret['Close_B'].shift(1)-1
-    # Replace NANs with zeros in first line (since there are no returns in the first period)
-    data_ret['Returns_A'].fillna(0, inplace=True)
-    data_ret['Returns_B'].fillna(0, inplace=True)
-
-    # Define detail of weight increments
-    detail = 0.01
-    wgt_range = range(0.42, 0.6, detail)
-
-    # Define Amount Invested in Period 0
-    initial_amount_invested = 1e6
-    # Define Trading Costs of Asset A (in basis points)
-    CA = 60
-    # Define Trading Costs of Asset B (in basis points)
-    CB = 40
-
-
 def cost_turnover(cost_vec, wgt_orig, wgt_target):
     return np.sum(np.abs(wgt_orig - wgt_target) * cost_vec)
 
@@ -91,7 +69,7 @@ def expected_cost_total(state_wgt, action_delta, mu, sigma_mat, transaction_cost
 class BellmanValue:
     # it assumes fix mu and sigma_mat
     # to consider varying mu and sigma_mat, state space must be expanded, and expectation must consider future new mu and sigma_mat
-    def __int__(self, mu, sigma_mat, transaction_cost, gamma):
+    def __init__(self, mu, sigma_mat, transaction_cost, gamma):
         self.mu = mu
         self.sigma_mat = sigma_mat
         self.transaction_cost = transaction_cost
@@ -99,7 +77,7 @@ class BellmanValue:
         x = np.arange(-7, 8)
         self.action_possible = np.array(np.meshgrid(*([x] * len(self.mu)))).T.reshape(-1, len(self.mu))
         self.action_possible = self.action_possible[self.action_possible.sum(axis=1) == 0, :]
-        x = np.arange(0, 101)
+        x = np.arange(1, 101)
         self.state_possible = np.array(np.meshgrid(*([x] * len(self.mu)))).T.reshape(-1, len(self.mu))
         self.state_possible = self.state_possible[self.state_possible.sum(axis=1) == 100, :]
         self.value_table = np.zeros(self.state_possible.shape[0])
@@ -108,6 +86,7 @@ class BellmanValue:
     def get_transition_prob(self, state_current, action):
         state_new_wgt = state_current + action
         ret_drift = self.state_possible / state_new_wgt
+        ret_drift -= 1
         # this is only an approximation, it hasn't considered the weight renormalization
         probabilities = scipy.stats.multivariate_normal.pdf(ret_drift, mean=self.mu, cov=self.sigma_mat)
         probabilities /= np.sum(probabilities)
@@ -117,10 +96,14 @@ class BellmanValue:
         action_value_current_state = []
         for action_id in range(self.action_possible.shape[0]):
             action = self.action_possible[action_id]
-            transition_prob = self.get_transition_prob(state_wgt, action)
-            reward = -expected_cost_total(state_wgt, action, self.mu, self.sigma_mat, self.transaction_cost)
-            next_state_value = self.value_table
-            action_value = np.sum(transition_prob * (reward + self.gamma * next_state_value))
+            new_state = state_wgt + action
+            if np.any(new_state <= 0):
+                action_value = -np.inf
+            else:
+                transition_prob = self.get_transition_prob(state_wgt, action)
+                reward = -expected_cost_total(state_wgt/100, action/100, self.mu, self.sigma_mat, self.transaction_cost)
+                next_state_value = self.value_table
+                action_value = np.sum(transition_prob * (reward + self.gamma * next_state_value))
             action_value_current_state.append(action_value)
         return action_value_current_state
 
@@ -132,12 +115,29 @@ class BellmanValue:
             new_q_table[state_id, :] = self.calculate_value(state_wgt)
             new_value_table[state_id] = np.max(new_q_table[state_id, :])
 
-        check_converged = np.sub(np.abs(self.value_table - new_value_table))
+        check_converged = np.sum(np.abs(self.value_table - new_value_table))
         self.value_table = new_value_table
         self.q_table = new_q_table
 
         return check_converged
 
+
+mu = np.array([50, 200]) / 1e4
+sigma = np.array([300, 800]) / 1e4
+cov = np.diag(sigma ** 2)
+start = dt.datetime(2000, 1, 1)
+end = dt.datetime(2019, 12, 31)
+dates = pd.date_range(start, end, freq="M")
+ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
+ret_df = pd.DataFrame(ret, index=dates)
+trans_cost = 10/1e4
+
+self = bell = BellmanValue(mu, cov, trans_cost, gamma=0.9)
+for dummy in range(200):
+    diff = bell.iterate_q_table_once()
+    if diff < 1e-4:
+        break
+    print("Iter {}: Value {}".format(dummy, diff))
 
 
 # Q-values

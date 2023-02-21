@@ -183,7 +183,7 @@ class Qlearning(BellmanValue):
         next_state_id = np.argwhere(np.all(self.state_possible == next_state, axis=1)).item()
         reward = -expected_cost_total(state_wgt/100, action/100, self.mu, self.sigma_mat, self.transaction_cost)
         update_amount = reward + self.gamma * np.max(self.q_table[next_state_id, :]) - self.q_table[state_id, action_id]
-        self.q_table[state_id, action] += self.learning_rate * update_amount
+        self.q_table[state_id, action_id] += self.learning_rate * update_amount
 
         return next_state_id
 

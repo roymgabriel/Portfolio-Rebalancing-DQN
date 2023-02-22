@@ -336,3 +336,10 @@ for i in range(num_episodes):
     current_state = random.randint(0, qlearner.num_states - 1)
     for j in range(max_steps_per_episode):
         current_state = dqn.network_training_once(current_state)
+
+for state_id in range(dqn.num_states):
+    dqn.value_table[state_id] = dqn.q_network(torch.FloatTensor(self.state_possible[state_id])).max().detach().numpy()
+
+from matplotlib import pyplot as plt
+plt.plot(dqn.value_table)
+plt.show()

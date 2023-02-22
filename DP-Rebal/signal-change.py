@@ -47,7 +47,7 @@ class BellmanValue:
         ret_drift = self.state_possible[:, self.state_col_wgt] / state_new_wgt
         ret_drift -= 1
         # this is only an approximation, it hasn't considered the weight renormalization
-        prob_on_wgt = scipy.stats.multivariate_normal.logpdf(ret_drift, mean=self.mu, cov=self.sigma_mat)
+        prob_on_wgt = scipy.stats.multivariate_normal.logpdf(ret_drift, mean=state_current[self.state_col_mu]/100, cov=self.sigma_mat)
         prob_on_wgt -= prob_on_wgt.max()
 
         mu_change = self.state_possible[:, self.state_col_mu] - state_current[self.state_col_mu]
@@ -108,8 +108,10 @@ dates = pd.date_range(start, end, freq="M")
 ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
 ret_df = pd.DataFrame(ret, index=dates)
 trans_cost = 10/1e4
+pvta_sd = np.array([50, 50])
+mu_change_cov = np.diag(pvta_sd ** 2)
 
-self = bell = BellmanValue(mu, cov, trans_cost, gamma=0.9)
+self = bell = BellmanValue(mu, cov, mu_change_cov, trans_cost, gamma=0.9)
 for dummy in range(200):
     diff = bell.iterate_q_table_once()
     if diff < 1e-4:

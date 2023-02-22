@@ -240,20 +240,20 @@ class QNetwork(nn.Module):
         return x
 
 class DQNlearning(Qlearning):
-    def __init__(self, mu, sigma_mat, transaction_cost, gamma, epsilon=0.1, learning_rate=0.1):
+    def __init__(self, mu, sigma_mat, transaction_cost, gamma, epsilon=0.1, learning_rate=0.001):
         super().__init__(mu, sigma_mat, transaction_cost, gamma, epsilon, learning_rate)
 
         # Initialize the Q network and optimizer
-        input_size = self.num_states
-        output_size = self.num_actions
-        self.q_network = QNetwork(input_size, output_size)
+        self.input_size = len(mu)
+        self.output_size = self.num_actions
+        self.q_network = QNetwork(self.input_size, self.output_size)
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=learning_rate)
 
         # Define the epsilon and learning rate
         self.epsilon = 1.0
-        self.min_epsilon = 0.1
+        self.min_epsilon = epsilon
         self.epsilon_decay = 0.999
-        self.learning_rate = 0.001
+        self.learning_rate = learning_rate
 
         # Define the replay buffer and batch size
         self.replay_buffer = []
@@ -283,8 +283,13 @@ class DQNlearning(Qlearning):
 
         # Get the next state from the distribution
         next_state = self.get_next_state(state_wgt, action_delta)
-        next_state_id = np.argwhere(np.all(self.state_possible == next_state, axis=1)).item()
-        reward = -expected_cost_total(state_wgt / 100, action_delta / 100, self.mu, self.sigma_mat, self.transaction_cost)
+
+        if np.any(next_state <= 0):
+            next_state_id = state_id
+            reward = -1
+        else:
+            next_state_id = np.argwhere(np.all(self.state_possible == next_state, axis=1)).item()
+            reward = -expected_cost_total(state_wgt / 100, action_delta / 100, self.mu, self.sigma_mat, self.transaction_cost)
 
         # Add the experience to the replay buffer
         self.replay_buffer.append((state_id, action_id, next_state_id, reward))
@@ -298,8 +303,8 @@ class DQNlearning(Qlearning):
             batch = random.sample(self.replay_buffer, self.batch_size)
 
             # Calculate the Q-value targets for the batch using the Q network
-            states = np.zeros((self.batch_size, input_size))
-            q_targets = np.zeros((self.batch_size, output_size))
+            states = np.zeros((self.batch_size, self.input_size))
+            q_targets = np.zeros((self.batch_size, self.output_size))
             for k in range(self.batch_size):
                 state_id_k, action_id_k, next_state_id_k, reward_k = batch[k]
                 state_wgt_k = self.state_possible[state_id_k]
@@ -322,3 +327,12 @@ class DQNlearning(Qlearning):
         # and then calculate the Q-value targets for the batch using the Q network.
         # We then update the Q network using the batch by calculating the loss and calling loss.backward() and optimizer.step().
         # Finally, we update the epsilon value using the decay factor.
+        return next_state_id
+
+self = dqn = DQNlearning(mu, cov, trans_cost, gamma=0.9, epsilon=0.1, learning_rate=0.001)
+
+for i in range(num_episodes):
+    print("Epoch {}".format(i))
+    current_state = random.randint(0, qlearner.num_states - 1)
+    for j in range(max_steps_per_episode):
+        current_state = dqn.network_training_once(current_state)

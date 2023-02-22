@@ -47,7 +47,7 @@ class BellmanValue:
         ret_drift = self.state_possible[:, self.state_col_wgt] / state_new_wgt
         ret_drift -= 1
         # this is only an approximation, it hasn't considered the weight renormalization
-        prob_on_wgt = scipy.stats.multivariate_normal.logpdf(ret_drift, mean=state_current[self.state_col_mu]/100, cov=self.sigma_mat)
+        prob_on_wgt = scipy.stats.multivariate_normal.logpdf(ret_drift, mean=state_current[self.state_col_mu]/10000, cov=self.sigma_mat)
         prob_on_wgt -= prob_on_wgt.max()
 
         mu_change = self.state_possible[:, self.state_col_mu] - state_current[self.state_col_mu]
@@ -78,7 +78,7 @@ class BellmanValue:
                 action_value = -np.inf
             else:
                 transition_prob = self.get_transition_prob(state_wgt, action)
-                reward = reward_sharpe_net_tc(state_wgt[self.state_col_wgt]/100, action/100, state_wgt[self.state_col_mu]/100, self.sigma_mat, self.transaction_cost)
+                reward = reward_sharpe_net_tc(state_wgt[self.state_col_wgt]/100, action/100, state_wgt[self.state_col_mu]/10000, self.sigma_mat, self.transaction_cost)
                 next_state_value = self.value_table
                 action_value = np.sum(transition_prob * (reward + self.gamma * next_state_value))
             action_value_current_state.append(action_value)

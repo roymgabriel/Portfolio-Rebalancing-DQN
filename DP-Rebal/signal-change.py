@@ -5,6 +5,10 @@ from scipy.optimize import minimize
 import scipy
 import random
 
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
 
 def reward_sharpe_net_tc(w0, d1, mu, cov, tc):
     w2 = w0 + d1
@@ -133,31 +137,6 @@ class BellmanValue:
         self.q_table = new_q_table
 
         return check_converged
-
-
-mu = np.array([50, 200]) / 1e4
-sigma = np.array([300, 800]) / 1e4
-cov = np.diag(sigma ** 2)
-start = dt.datetime(2000, 1, 1)
-end = dt.datetime(2019, 12, 31)
-dates = pd.date_range(start, end, freq="M")
-ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
-ret_df = pd.DataFrame(ret, index=dates)
-trans_cost = 10/1e4
-pvta_sd = np.array([50, 50])
-mu_change_cov = np.diag(pvta_sd ** 2)
-
-# self = bell = BellmanValue(mu, cov, mu_change_cov, trans_cost, gamma=0.9)
-# for dummy in range(200):
-#     diff = bell.iterate_q_table_once()
-#     if diff < 1e-4:
-#         break
-#     print("Iter {}: Value {}".format(dummy, diff))
-
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
 
 
 # Define the Q network
@@ -299,32 +278,54 @@ class DQNlearning(BellmanValue):
         # Finally, we update the epsilon value using the decay factor.
         return next_state_id
 
-self = dqn = DQNlearning(mu, cov, mu_change_cov, trans_cost, gamma=0.9, epsilon=0.1, learning_rate=0.001)
-self.get_next_state(np.array([43, 57, 3,3]), np.array([-1,1]))
 
-num_episodes = 1000
-max_steps_per_episode = 100
+if __name__ == '__main__':
 
-for i in range(num_episodes):
-    print("Epoch {}".format(i))
-    current_state = random.randint(0, dqn.num_states - 1)
-    for j in range(max_steps_per_episode):
-        current_state = dqn.network_training_once(current_state)
+    mu = np.array([50, 200]) / 1e4
+    sigma = np.array([300, 800]) / 1e4
+    cov = np.diag(sigma ** 2)
+    start = dt.datetime(2000, 1, 1)
+    end = dt.datetime(2019, 12, 31)
+    dates = pd.date_range(start, end, freq="M")
+    ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
+    ret_df = pd.DataFrame(ret, index=dates)
+    trans_cost = 10 / 1e4
+    pvta_sd = np.array([50, 50])
+    mu_change_cov = np.diag(pvta_sd ** 2)
 
-for state_id in range(dqn.num_states):
-    dqn.value_table[state_id] = dqn.q_network(torch.FloatTensor(self.state_possible[state_id])).max().detach().numpy()
+    # self = bell = BellmanValue(mu, cov, mu_change_cov, trans_cost, gamma=0.9)
+    # for dummy in range(200):
+    #     diff = bell.iterate_q_table_once()
+    #     if diff < 1e-4:
+    #         break
+    #     print("Iter {}: Value {}".format(dummy, diff))
 
-from matplotlib import pyplot as plt
-plt.plot(dqn.value_table)
-plt.show()
-dqn.state_possible[:99,:]
+    self = dqn = DQNlearning(mu, cov, mu_change_cov, trans_cost, gamma=0.9, epsilon=0.1, learning_rate=0.001)
+    self.get_next_state(np.array([43, 57, 3, 3]), np.array([-1,1]))
 
-plt.plot(dqn.value_table[:99])
-plt.show()
+    num_episodes = 1000
+    max_steps_per_episode = 100
 
-chunk_size = 99
-i = 900
-plt.plot(dqn.value_table[(i-1)*chunk_size:i*chunk_size])
-print(dqn.state_possible[(i-1)*chunk_size:i*chunk_size, :])
-plt.show()
+    for i in range(num_episodes):
+        print("Epoch {}".format(i))
+        current_state = random.randint(0, dqn.num_states - 1)
+        for j in range(max_steps_per_episode):
+            current_state = dqn.network_training_once(current_state)
+
+    for state_id in range(dqn.num_states):
+        dqn.value_table[state_id] = dqn.q_network(torch.FloatTensor(self.state_possible[state_id])).max().detach().numpy()
+
+    from matplotlib import pyplot as plt
+    plt.plot(dqn.value_table)
+    plt.show()
+    dqn.state_possible[:99,:]
+
+    plt.plot(dqn.value_table[:99])
+    plt.show()
+
+    chunk_size = 99
+    i = 900
+    plt.plot(dqn.value_table[(i-1)*chunk_size:i*chunk_size])
+    print(dqn.state_possible[(i-1)*chunk_size:i*chunk_size, :])
+    plt.show()
 

@@ -169,6 +169,8 @@ class DQNlearning(BellmanValue):
                 np.argwhere(np.all(state[self.state_col_wgt] + self.action_possible > 0, axis=1)).reshape([-1])
             )
 
+    # mean 0, delta sd 30, error 50 - 100
+
     def get_next_state(self, state, action):
         new_state_wgt = state[self.state_col_wgt] + action
         mu = state[self.state_col_mu] / 1e4
@@ -274,5 +276,15 @@ for state_id in range(dqn.num_states):
 
 from matplotlib import pyplot as plt
 plt.plot(dqn.value_table)
+plt.show()
+dqn.state_possible[:99,:]
+
+plt.plot(dqn.value_table[:99])
+plt.show()
+
+chunk_size = 99
+i = 900
+plt.plot(dqn.value_table[(i-1)*chunk_size:i*chunk_size])
+print(dqn.state_possible[(i-1)*chunk_size:i*chunk_size, :])
 plt.show()
 

@@ -236,9 +236,17 @@ net_ret_result = []
 sharpe_result = []
 net_sharpe_result = []
 turnover_result = []
-for k in range(n_sample):
-    if k % 100 == 99:
-        print(f"Running {k + 1}/{n_sample}")
+
+# mean 0, delta sd 30, error 50 - 100
+mu_init = mu
+ptva_delta_mean = 0
+ptva_delta_sd = 30 / 1e4
+ptva_error = 70 / 1e4
+
+
+for _k in range(n_sample):
+    if _k % 100 == 99:
+        print(f"Running {_k + 1}/{n_sample}")
 
     # simulate mu and sigma from real managers
     # n_manager = 15
@@ -248,7 +256,23 @@ for k in range(n_sample):
     # cov = np.diag(sigma ** 2)
 
     # simulate return
-    ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
+    mu = []
+    mu_curr = mu_init
+    mu.append(mu_curr)
+    for t in range(1, len(dates)):
+        mu_curr = np.random.normal(mu_curr + ptva_delta_mean, ptva_delta_sd, size=len(mu_curr))
+        mu_curr = np.maximum(0, mu_curr)
+        mu.append(mu_curr)
+    mu = np.array(mu)
+    # mpl.plot(mu)
+    # mpl.show()
+
+    # ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
+    ret = []
+    for t in range(0, len(dates)):
+        ret.append(np.random.multivariate_normal(mu[t, :] / 12, cov / 12))
+    ret = np.array(ret)
+
     ret_df = pd.DataFrame(ret, index=dates)
     # ret_df = rtva_df[evids]
     # mu_df = ptva_df[evids].reindex(ret_df.index)

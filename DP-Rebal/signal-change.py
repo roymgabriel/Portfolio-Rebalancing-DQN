@@ -147,12 +147,12 @@ trans_cost = 10/1e4
 pvta_sd = np.array([50, 50])
 mu_change_cov = np.diag(pvta_sd ** 2)
 
-self = bell = BellmanValue(mu, cov, mu_change_cov, trans_cost, gamma=0.9)
-for dummy in range(200):
-    diff = bell.iterate_q_table_once()
-    if diff < 1e-4:
-        break
-    print("Iter {}: Value {}".format(dummy, diff))
+# self = bell = BellmanValue(mu, cov, mu_change_cov, trans_cost, gamma=0.9)
+# for dummy in range(200):
+#     diff = bell.iterate_q_table_once()
+#     if diff < 1e-4:
+#         break
+#     print("Iter {}: Value {}".format(dummy, diff))
 
 
 import torch
@@ -258,6 +258,7 @@ class DQNlearning(BellmanValue):
         else:
             next_state_id = np.argwhere(np.all(self.state_possible == next_state, axis=1)).item()
             # another idea: use the realized return for reward, but it may not work because return could be too noisy
+            # reward = -cost_suboptimality(state_wgt[self.state_col_wgt]/100, action_delta/100, state_wgt[self.state_col_mu]/10000, self.sigma_mat, self.transaction_cost)
             reward = reward_sharpe_net_tc(state_wgt[self.state_col_wgt]/100, action_delta/100, state_wgt[self.state_col_mu]/10000, self.sigma_mat, self.transaction_cost)
 
         # Add the experience to the replay buffer

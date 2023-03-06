@@ -154,6 +154,7 @@ class QNetwork(nn.Module):
 
 
 class DQNlearning(BellmanValue):
+    # TODO state_id is actually not needed, use state_wgt_mu directly
     def __init__(self, num_asset, sigma_mat, mu_change_cov, transaction_cost, gamma, epsilon=0.1, learning_rate=0.001, mu_error=0):
         super().__init__(num_asset, sigma_mat, mu_change_cov, transaction_cost, gamma)
         self.mu_error = mu_error
@@ -205,6 +206,14 @@ class DQNlearning(BellmanValue):
         new_state = np.concatenate((new_state_wgt.reshape([-1]), new_state_mu.reshape([-1])), axis=0)
         new_state = np.round(new_state).astype(int)
         return new_state
+
+
+    def find_best_action(self, state_wgt_mu):
+        q_values = self.q_network(torch.FloatTensor(state_wgt_mu))  # q_table lookup now changes to NN approximation
+        action_id = torch.argmax(q_values).item()
+        action_delta = self.action_possible[action_id]
+        return dict(action_id=action_id, wgt_delta=action_delta)
+
 
     def network_training_once(self, state_id):
         input_size = self.num_states

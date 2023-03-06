@@ -355,6 +355,10 @@ for _k in range(n_sample):
                 action_id = np.where(bell.q_table[state_id] == bell.q_table[state_id].max())[0][0]
                 w1 = (bell.state_possible[state_id] + bell.action_possible[action_id]) / 100
                 w1 = w0 if np.max(w1 - w0) < 0.005 else w1
+            elif k == "DQN Rebalance":  # has true cov information
+                action_id, action_wgt = dqn.find_best_action(np.concatenate([w0.reshape([-1]) * 100, mu_est.reshape([-1]) * 1e4]))
+                w1 = w0 + action_wgt / 100
+                w1 = w0 if np.max(w1 - w0) < 0.005 else w1
 
             wgt[t] = w1
             to_dict[k][t] = np.sum(np.abs(w1 - w0)) / 2

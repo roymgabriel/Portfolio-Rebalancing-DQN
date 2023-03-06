@@ -63,19 +63,18 @@ def cost_suboptimality(w0, d1, mu, cov, tc):
 # V(s) = max_a E_s'[ r(s,a,s') + gamma * V(s') ]
 class BellmanValue:
     # mu will change from period to period through mu_change_cov, which can be set through one-year forward PTVA study
-    def __init__(self, mu_init, sigma_mat, mu_change_cov, transaction_cost, gamma):
-        self.mu_init = mu_init
+    def __init__(self, num_asset, sigma_mat, mu_change_cov, transaction_cost, gamma):
         self.sigma_mat = sigma_mat
         self.mu_change_cov = mu_change_cov
         self.transaction_cost = transaction_cost
         self.gamma = gamma
-        self.num_asset = len(mu_init)
+        self.num_asset = num_asset
         x = np.arange(-7, 8)
-        self.action_possible = np.array(np.meshgrid(*([x] * len(mu_init)))).T.reshape(-1, len(mu_init))
+        self.action_possible = np.array(np.meshgrid(*([x] * self.num_asset))).T.reshape(-1, self.num_asset)
         self.action_possible = self.action_possible[self.action_possible.sum(axis=1) == 0, :]
         x1 = np.arange(1, 101)
         x2 = np.arange(0, 401, 5)
-        self.state_possible = np.array(np.meshgrid(*([x1] * len(mu_init) + [x2] * len(mu_init)))).T.reshape(-1, 2*len(mu_init))
+        self.state_possible = np.array(np.meshgrid(*([x1] * self.num_asset + [x2] * self.num_asset))).T.reshape(-1, 2*self.num_asset)
         self.state_possible = self.state_possible[self.state_possible[:, 0:self.num_asset].sum(axis=1) == 100, :]
         self.state_col_wgt = range(0, self.num_asset)
         self.state_col_mu = range(self.num_asset, 2*self.num_asset)
@@ -155,12 +154,12 @@ class QNetwork(nn.Module):
 
 
 class DQNlearning(BellmanValue):
-    def __init__(self, mu_init, sigma_mat, mu_change_cov, transaction_cost, gamma, epsilon=0.1, learning_rate=0.001, mu_error=0):
-        super().__init__(mu_init, sigma_mat, mu_change_cov, transaction_cost, gamma)
+    def __init__(self, num_asset, sigma_mat, mu_change_cov, transaction_cost, gamma, epsilon=0.1, learning_rate=0.001, mu_error=0):
+        super().__init__(num_asset, sigma_mat, mu_change_cov, transaction_cost, gamma)
         self.mu_error = mu_error
 
         # Initialize the Q network and optimizer
-        self.input_size = len(mu_init) * 2
+        self.input_size = self.num_asset * 2
         self.num_actions = self.action_possible.shape[0]
         self.output_size = self.num_actions
         self.q_network = QNetwork(self.input_size, self.output_size)
@@ -281,6 +280,7 @@ class DQNlearning(BellmanValue):
 
 if __name__ == '__main__':
 
+    num_asset = 2
     mu = np.array([50, 200]) / 1e4
     sigma = np.array([300, 800]) / 1e4
     cov = np.diag(sigma ** 2)
@@ -300,7 +300,7 @@ if __name__ == '__main__':
     #         break
     #     print("Iter {}: Value {}".format(dummy, diff))
 
-    self = dqn = DQNlearning(mu, cov, mu_change_cov, trans_cost, gamma=0.9, epsilon=0.1, learning_rate=0.001)
+    self = dqn = DQNlearning(num_asset, cov, mu_change_cov, trans_cost, gamma=0.9, epsilon=0.1, learning_rate=0.001)
     self.get_next_state(np.array([43, 57, 3, 3]), np.array([-1,1]))
 
     num_episodes = 1000

@@ -5,6 +5,8 @@ import datetime as dt
 import matplotlib.pyplot as mpl
 import scipy.stats as ss
 from scipy.optimize import minimize
+from signal_change import DQNlearning
+import random
 
 mpl.rcParams.update({"font.size": 18})
 
@@ -163,6 +165,23 @@ mpl.legend()
 mpl.tight_layout()
 mpl.show()
 
+# setup and training for DQN
+num_asset = 2
+pvta_sd = np.array([50, 50])
+mu_change_cov = np.diag(pvta_sd ** 2)
+
+dqn = DQNlearning(num_asset, cov, mu_change_cov, tc, gamma=0.9, epsilon=0.1, learning_rate=0.001)
+
+num_episodes = 1000
+max_steps_per_episode = 100
+
+for i in range(num_episodes):
+    print("Epoch {}".format(i))
+    current_state = random.randint(0, dqn.num_states - 1)
+    for j in range(max_steps_per_episode):
+        current_state = dqn.network_training_once(current_state)
+
+
 # # simulation for more managers
 # n_manager = 15
 # mu = np.random.uniform(75, 120, n_manager) / 1e4
@@ -299,7 +318,8 @@ for _k in range(n_sample):
         "3% Rebalance": weight.copy(),
         "5% Rebalance": weight.copy(),
         "8% Rebalance": weight.copy(),
-        "DP Rebalance": weight.copy()
+        "DP Rebalance": weight.copy(),
+        "DQN Rebalance": weight.copy(),
     }
     to_dict = {k: np.zeros(len(test_dates)) for k in wgt_dict.keys()}
     for t in range(1, weight.shape[0]):

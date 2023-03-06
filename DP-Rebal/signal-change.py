@@ -15,6 +15,42 @@ def reward_sharpe_net_tc(w0, d1, mu, cov, tc):
     return net_sharpe2
 
 
+def find_optimal_wgt(w0, mu, cov, tc):
+    # Define the objective function to be optimized
+    def objective(d1):
+        return -reward_sharpe_net_tc(w0, d1, mu, cov, tc)
+
+    # Define the constraint function
+    def constraint(d1):
+        return d1.sum()
+
+    # Define the bounds for d1
+    d1_init = np.zeros(len(mu))
+    bounds = [(-w0[_], None) for _ in range(len(d1_init))]
+
+    # Define the optimization problem
+    problem = {
+        'fun': objective,
+        'x0': d1_init,
+        'bounds': bounds,
+        'constraints': [{'type': 'eq', 'fun': constraint}]
+    }
+
+    # Solve the optimization problem
+    result = minimize(**problem)
+
+    # Extract the optimized value of d1
+    return result.x
+
+
+def cost_suboptimality(w0, d1, mu, cov, tc):
+    # to calculate net sharpe difference computational cose will be too high -- optimization is needed to solve for the current optimum
+    d_opt = find_optimal_wgt(w0, mu, cov, tc)
+    reward_optimal = reward_sharpe_net_tc(w0, d_opt, mu, cov, tc)
+    reward_current = reward_sharpe_net_tc(w0, d1, mu, cov, tc)
+    return reward_optimal - reward_current
+
+
 # two-asset model with dynamic programing and q-table learning
 
 # Bellman equation
@@ -140,8 +176,9 @@ class QNetwork(nn.Module):
 
 
 class DQNlearning(BellmanValue):
-    def __init__(self, mu_init, sigma_mat, mu_change_cov, transaction_cost, gamma, epsilon=0.1, learning_rate=0.001):
+    def __init__(self, mu_init, sigma_mat, mu_change_cov, transaction_cost, gamma, epsilon=0.1, learning_rate=0.001, mu_error=0):
         super().__init__(mu_init, sigma_mat, mu_change_cov, transaction_cost, gamma)
+        self.mu_error = mu_error
 
         # Initialize the Q network and optimizer
         self.input_size = len(mu_init) * 2
@@ -175,6 +212,7 @@ class DQNlearning(BellmanValue):
         new_state_wgt = state[self.state_col_wgt] + action
         mu = state[self.state_col_mu] / 1e4
         random_ret = np.random.multivariate_normal(mu, self.sigma_mat, size=1)
+        random_ret += np.random.normal(0, self.mu_error / 1e4, size=len(random_ret))
         new_state_wgt = new_state_wgt * (1+random_ret)
         new_state_wgt = new_state_wgt / np.sum(new_state_wgt) * 100
         new_state_wgt = np.maximum(new_state_wgt, 1)
@@ -219,6 +257,7 @@ class DQNlearning(BellmanValue):
             reward = -1
         else:
             next_state_id = np.argwhere(np.all(self.state_possible == next_state, axis=1)).item()
+            # another idea: use the realized return for reward, but it may not work because return could be too noisy
             reward = reward_sharpe_net_tc(state_wgt[self.state_col_wgt]/100, action_delta/100, state_wgt[self.state_col_mu]/10000, self.sigma_mat, self.transaction_cost)
 
         # Add the experience to the replay buffer

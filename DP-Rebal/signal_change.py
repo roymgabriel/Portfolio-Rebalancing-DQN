@@ -327,6 +327,7 @@ if __name__ == '__main__':
     from matplotlib import pyplot as plt
     plt.plot(dqn.value_table)
     plt.show()
+    plt.savefig('figdqn1.png')
     dqn.state_possible[:99,:]
 
     plt.plot(dqn.value_table[:99])

@@ -163,6 +163,7 @@ mpl.xlabel("Weight on First Asset")
 mpl.axvline(optimal_weight[0], label="Optimal", color="red")
 mpl.legend()
 mpl.tight_layout()
+mpl.savefig('fig1.png')
 mpl.show()
 
 # setup and training for DQN
@@ -180,6 +181,31 @@ for i in range(num_episodes):
     current_state = random.randint(0, dqn.num_states - 1)
     for j in range(max_steps_per_episode):
         current_state = dqn.network_training_once(current_state)
+
+import pickle
+with open('dqn.pkl', 'wb') as f:
+    pickle.dump(dqn, f)
+
+y = [-cost_net_sharpe(np.array([i / 100, 1 - i / 100]), np.array([0, 0]), mu, cov, tc) for i in range(99)]
+mpl.clf()
+mpl.figure(1, figsize=(20, 10))
+mpl.plot(np.arange(99) / 100, bell.value_table - np.max(bell.value_table), label="Value Table")
+mpl.plot(np.arange(99) / 100, y - np.max(y), label="Net Sharpe")
+mpl.xlabel("Weight on First Asset")
+mpl.axvline(optimal_weight[0], label="Optimal", color="red")
+
+
+chunk_size = 99
+i = 900
+y = dqn.value_table[(i-1)*chunk_size:i*chunk_size]
+mpl.plot(np.arange(99) / 100, y - np.max(y), label="mu (40, 50)")
+print(dqn.state_possible[(i-1)*chunk_size:i*chunk_size, :])
+
+mpl.legend()
+mpl.tight_layout()
+mpl.savefig('figdqn2.png')
+mpl.show()
+
 
 
 # # simulation for more managers
@@ -356,8 +382,9 @@ for _k in range(n_sample):
                 w1 = (bell.state_possible[state_id] + bell.action_possible[action_id]) / 100
                 w1 = w0 if np.max(w1 - w0) < 0.005 else w1
             elif k == "DQN Rebalance":  # has true cov information
-                action_id, action_wgt = dqn.find_best_action(np.concatenate([w0.reshape([-1]) * 100, mu_est.reshape([-1]) * 1e4]))
-                w1 = w0 + action_wgt / 100
+                action = dqn.find_best_action(np.concatenate([w0.reshape([-1]) * 100, mu_est.reshape([-1]) * 1e4]))
+                action_wgt = action['wgt_delta']
+                w1 = (round(w0[0] * 100) + action_wgt) / 100
                 w1 = w0 if np.max(w1 - w0) < 0.005 else w1
 
             wgt[t] = w1
@@ -416,6 +443,7 @@ ax.legend([f"{c}: {turnover_summary_df[c].mean() * tc * 1e4:.2f} bps" for c in t
 
 mpl.tight_layout()
 mpl.show()
+mpl.savefig('comparison_result_with_sig_change.png')
 
 stats = pd.concat([
     (ret_summary_df.mean() * 1e4).round(1), sharpe_summary_df.mean().round(3),

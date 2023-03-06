@@ -330,10 +330,10 @@ for _k in range(n_sample):
                 w1 = opt_weight if np.sum(np.abs(w0 - opt_weight)) / 2 > 0.05 else w0
             elif k == "8% Rebalance":
                 w1 = opt_weight if np.sum(np.abs(w0 - opt_weight)) / 2 > 0.08 else w0
-            elif k == "DP Rebalance":
+            elif k == "DP Rebalance":  # has true mu and cov information
                 state_id = int(round(w0[0] * 100, 0)) - 1
-                action_id = np.where(self.q_table[state_id] == self.q_table[state_id].max())[0][0]
-                w1 = (self.state_possible[state_id] + self.action_possible[action_id]) / 100
+                action_id = np.where(bell.q_table[state_id] == bell.q_table[state_id].max())[0][0]
+                w1 = (bell.state_possible[state_id] + bell.action_possible[action_id]) / 100
                 w1 = w0 if np.max(w1 - w0) < 0.005 else w1
 
             wgt[t] = w1

@@ -5,7 +5,7 @@ import datetime as dt
 import matplotlib.pyplot as mpl
 import scipy.stats as ss
 from scipy.optimize import minimize
-from signal_change import DQNlearning
+from signal_change import DQNlearning, torch
 import random
 
 mpl.rcParams.update({"font.size": 18})
@@ -186,6 +186,14 @@ import pickle
 with open('dqn.pkl', 'wb') as f:
     pickle.dump(dqn, f)
 
+best_action = dqn.value_table.copy()
+for state_id in range(dqn.num_states):
+    q_values = dqn.q_network(torch.FloatTensor(dqn.state_possible[state_id]))
+    dqn.value_table[state_id] = q_values.max().detach().numpy()
+    best_action[state_id] = torch.argmax(q_values).detach().numpy()
+
+dqn.action_possible
+
 y = [-cost_net_sharpe(np.array([i / 100, 1 - i / 100]), np.array([0, 0]), mu, cov, tc) for i in range(99)]
 mpl.clf()
 mpl.figure(1, figsize=(20, 10))
@@ -206,6 +214,18 @@ mpl.tight_layout()
 mpl.savefig('figdqn2.png')
 mpl.show()
 
+mpl.clf()
+mpl.figure(1, figsize=(20, 10))
+y = [bell.action_possible[bell.q_table[i, :].argmax(), 0] for i in range(99)]
+mpl.plot(np.arange(99) / 100,  y, label="DP Action Table")
+
+y = [bell.action_possible[int(best_action[it]), 0] for it in range((i-1)*chunk_size, i*chunk_size)]
+mpl.plot(np.arange(99) / 100,  y, label="DQN Action Table")
+mpl.savefig('figdqn3.png')
+mpl.show()
+
+import pandas as pd
+pd.value_counts(best_action)
 
 
 # # simulation for more managers

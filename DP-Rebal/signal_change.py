@@ -321,8 +321,11 @@ if __name__ == '__main__':
         for j in range(max_steps_per_episode):
             current_state = dqn.network_training_once(current_state)
 
+    best_action = dqn.value_table.copy()
     for state_id in range(dqn.num_states):
-        dqn.value_table[state_id] = dqn.q_network(torch.FloatTensor(self.state_possible[state_id])).max().detach().numpy()
+        q_values = dqn.q_network(torch.FloatTensor(dqn.state_possible[state_id]))
+        dqn.value_table[state_id] = q_values.max().detach().numpy()
+        best_action[state_id] = torch.argmax(q_values).detach().numpy()
 
     from matplotlib import pyplot as plt
     plt.plot(dqn.value_table)
@@ -337,5 +340,8 @@ if __name__ == '__main__':
     i = 900
     plt.plot(dqn.value_table[(i-1)*chunk_size:i*chunk_size])
     print(dqn.state_possible[(i-1)*chunk_size:i*chunk_size, :])
+    plt.show()
+
+    plt.plot(best_action[(i-1)*chunk_size:i*chunk_size])
     plt.show()
 

@@ -118,7 +118,7 @@ class BellmanValue:
 
         check_converged = np.sum(np.abs(self.value_table - new_value_table))
         self.value_table = new_value_table
-        self.q_table = new_q_table
+        self.q_tbellable = new_q_table
 
         return check_converged
 
@@ -337,9 +337,26 @@ for i in range(num_episodes):
     for j in range(max_steps_per_episode):
         current_state = dqn.network_training_once(current_state)
 
+best_action = bell.value_table.copy()
+for state_id in range(bell.q_table.shape[0]):
+    q_values = bell.q_table[state_id, :]
+    best_action[state_id] = bell.action_possible[q_values.argmax(), 0]
+
+from matplotlib import pyplot as plt
+plt.plot(best_action)
+plt.show()
+
+
+best_action = dqn.value_table.copy()
 for state_id in range(dqn.num_states):
-    dqn.value_table[state_id] = dqn.q_network(torch.FloatTensor(self.state_possible[state_id])).max().detach().numpy()
+    q_values = dqn.q_network(torch.FloatTensor(dqn.state_possible[state_id]))
+    dqn.value_table[state_id] = q_values.max().detach().numpy()
+    best_action[state_id] = torch.argmax(q_values).detach().numpy()
 
 from matplotlib import pyplot as plt
 plt.plot(dqn.value_table)
 plt.show()
+
+plt.plot(best_action)
+plt.show()
+

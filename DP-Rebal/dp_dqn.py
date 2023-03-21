@@ -231,9 +231,9 @@ for tc in [0, 0.0005, 0.001, 0.002]:
 
 x = self.state_possible[:, 0]
 action_df = pd.DataFrame(index=x)
-for tc, bell in qmodel_result.items():
+for tc, mo in qmodel_result.items():
     # visualize q table
-    action = np.array([bell.action_possible[i, 0] for i in bell.q_table.argmax(axis=1)])
+    action = np.array([mo.action_possible[i, 0] for i in mo.q_table.argmax(axis=1)])
     action_df[f"TC: {tc * 1e4:.0f} bps"] = action
 
 fig, ax = mpl.subplots(1, 1, figsize=(20, 10))

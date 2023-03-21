@@ -5,6 +5,7 @@ import datetime as dt
 import matplotlib.pyplot as mpl
 import scipy.stats as ss
 from scipy.optimize import minimize
+import random
 
 mpl.rcParams.update({"font.size": 18})
 
@@ -151,6 +152,93 @@ for tc, bell in model_result.items():
 fig, ax = mpl.subplots(1, 1, figsize=(20, 10))
 action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
 action_bm_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dashed")
+ax.set_xlabel("Weight on First Asset")
+ax.set_ylabel("Suggested Delta Weight on Asset 1")
+ax.axvline(optimal_weight[0], color="red", linestyle="dotted")
+ax.axhline(0, color="red", linestyle="dotted")
+ax.legend()
+mpl.tight_layout()
+mpl.show()
+mpl.savefig(os.path.expanduser(f"~/Desktop/q_table.png"))
+mpl.close()
+
+bell_action_df = action_df.copy()
+
+# Q-values
+# Q(s, a) = Q(s, a) + alpha * (r + gamma * max_a' Q(s', a') - Q(s, a))
+# where alpha is the learning rate (a small positive value that determines the weight given to new observations), r is the reward received for taking action a in state s,
+# gamma is the discount factor (a value between 0 and 1 that determines the importance of future rewards), s' is the next state, and a' is the optimal action to take in state s' (according to the current Q-values).
+# We can use an epsilon-greedy policy to select actions during the learning process. With probability epsilon, the agent selects a random action (exploration), and with probability 1 - epsilon, the agent selects the action with the highest Q-value (exploitation).
+class Qlearning(BellmanValue):
+    # same assumption for constant mu and sigma_mat
+    def __init__(self, mu, sigma_mat, transaction_cost, gamma, epsilon=0.1, learning_rate=0.1):
+        super().__init__(mu, sigma_mat, transaction_cost, gamma)
+        self.epsilon = epsilon
+        self.learning_rate = learning_rate
+        self.num_actions = self.action_possible.shape[0]
+        self.num_states = self.state_possible.shape[0]
+        for state_id in range(self.num_states):
+            state = self.state_possible[state_id]
+            self.q_table[state_id, np.argwhere(np.any(state + self.action_possible <= 0, axis=1))] = -np.inf
+
+    def get_next_state(self, state, action):
+        new_state = state + action
+        # remove stochastic component to be consistent with the value iteration because value iteration hasn't considered the weight renormalization
+        random_ret = np.random.multivariate_normal(self.mu, self.sigma_mat, size=1)
+        new_state = new_state * (1+random_ret)
+        new_state = new_state / np.sum(new_state)
+        new_state = np.round(new_state, 2)
+        return new_state
+
+    def q_learning_once(self, state_id):
+        state_wgt = self.state_possible[state_id, :]
+
+        if random.uniform(0, 1) < self.epsilon:
+            action_feasible = np.argwhere(self.q_table[state_id, :] > -np.inf).reshape([-1])
+            action_id = np.random.choice(action_feasible, 1).item()
+        else:
+            action_id = np.argmax(self.q_table[state_id, :])
+        action = self.action_possible[action_id, :]
+
+        # Get the next state and reward
+        next_state = self.get_next_state(state_wgt, action)
+        next_state_id = np.argwhere(np.all(self.state_possible == next_state, axis=1)).item()
+        reward = -expected_cost_total(state_wgt, state_wgt+action, self.optimal_weight, self.mu, self.sigma_mat,
+                                      self.transaction_cost)
+        update_amount = reward + self.gamma * np.max(self.q_table[next_state_id, :]) - self.q_table[state_id, action_id]
+        self.q_table[state_id, action_id] += self.learning_rate * update_amount
+
+        return next_state_id
+
+    def set_value_fun_from_q_table(self):
+        for state_id in range(self.state_possible.shape[0]):
+            self.value_table[state_id] = np.max(self.q_table[state_id, :])
+
+    def iterate(self, num_episodes = 1000, max_steps_per_episode = 100):
+        print("Iteration Start")
+        for i in range(num_episodes):
+            print("Epoch {}".format(i))
+            current_state = random.randint(0, self.num_states - 1)
+            for j in range(max_steps_per_episode):
+                current_state = self.q_learning_once(current_state)
+
+qmodel_result = {}
+for tc in [0, 0.0005, 0.001, 0.002]:
+    qlearner = Qlearning(mu, cov, tc, gamma=0.9, epsilon=0.1, learning_rate=0.1)
+    qlearner.iterate()
+    qmodel_result[tc] = qlearner
+
+
+x = self.state_possible[:, 0]
+action_df = pd.DataFrame(index=x)
+for tc, bell in qmodel_result.items():
+    # visualize q table
+    action = np.array([bell.action_possible[i, 0] for i in bell.q_table.argmax(axis=1)])
+    action_df[f"TC: {tc * 1e4:.0f} bps"] = action
+
+fig, ax = mpl.subplots(1, 1, figsize=(20, 10))
+action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
+bell_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dashed")
 ax.set_xlabel("Weight on First Asset")
 ax.set_ylabel("Suggested Delta Weight on Asset 1")
 ax.axvline(optimal_weight[0], color="red", linestyle="dotted")

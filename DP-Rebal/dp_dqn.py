@@ -225,7 +225,7 @@ class Qlearning(BellmanValue):
 qmodel_result = {}
 for tc in [0, 0.0005, 0.001, 0.002]:
     qlearner = Qlearning(mu, cov, tc, gamma=0.9, epsilon=0.1, learning_rate=0.1)
-    qlearner.iterate()
+    qlearner.iterate(num_episodes = 10000, max_steps_per_episode = 1000)
     qmodel_result[tc] = qlearner
 
 

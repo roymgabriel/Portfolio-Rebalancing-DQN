@@ -381,6 +381,10 @@ for tc in [0, 0.0005, 0.001, 0.002]:
     dqn.iterate(num_episodes=1000, max_steps_per_episode=100)
     dqn_result[tc] = dqn
 
+# while True:
+#     for tc in [0, 0.0005, 0.001, 0.002]:
+#         dqn = qmodel_result[tc]
+#         dqn.iterate(num_episodes = 10000, max_steps_per_episode = 1000)
 
 x = self.state_possible[:, 0]
 dqn_action_df = pd.DataFrame(index=x)

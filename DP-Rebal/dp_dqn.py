@@ -234,14 +234,14 @@ for tc in [0, 0.0005, 0.001, 0.002]:
 #         qlearner.iterate(num_episodes = 10000, max_steps_per_episode = 1000)
 
 x = self.state_possible[:, 0]
-action_df = pd.DataFrame(index=x)
+ql_action_df = pd.DataFrame(index=x)
 for tc, mo in qmodel_result.items():
     # visualize q table
     action = np.array([mo.action_possible[i, 0] for i in mo.q_table.argmax(axis=1)])
-    action_df[f"TC: {tc * 1e4:.0f} bps"] = action
+    ql_action_df[f"TC: {tc * 1e4:.0f} bps"] = action
 
 fig, ax = mpl.subplots(1, 1, figsize=(20, 10))
-action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
+ql_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
 bell_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dashed")
 ax.set_xlabel("Weight on First Asset")
 ax.set_ylabel("Suggested Delta Weight on Asset 1")
@@ -253,3 +253,157 @@ mpl.show()
 mpl.savefig(os.path.expanduser(f"~/Desktop/bell_qlearn.png"))
 mpl.close()
 
+
+# DQN is a variant of Q-learning that uses a neural network to estimate the Q-values instead of a table.
+# The neural network takes the state as input and outputs a Q-value for each action.
+# https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+# Define the Q network
+class QNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(QNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+class DQNlearning(Qlearning):
+    def __init__(self, mu, sigma_mat, transaction_cost, gamma, epsilon=0.1, learning_rate=0.001):
+        super().__init__(mu, sigma_mat, transaction_cost, gamma, epsilon, learning_rate)
+
+        # Initialize the Q network and optimizer
+        self.input_size = len(mu)
+        self.output_size = self.num_actions
+        self.q_network = QNetwork(self.input_size, self.output_size)
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=learning_rate)
+
+        # Define the epsilon and learning rate
+        self.epsilon = 1.0
+        self.min_epsilon = epsilon
+        self.epsilon_decay = 0.99999
+        self.learning_rate = learning_rate
+
+        # Define the replay buffer and batch size
+        self.replay_buffer = []
+        self.max_replay_buffer_size = 100000
+        self.batch_size = 32
+
+    def network_training_once(self, state_id):
+        input_size = self.num_states
+        output_size = self.num_actions
+
+        state_wgt = self.state_possible[state_id, :]
+
+        # Choose the action using an epsilon-greedy policy
+        self.epsilon *= self.epsilon_decay
+        self.epsilon = np.maximum(self.epsilon, self.min_epsilon)
+        if random.uniform(0, 1) < self.epsilon:
+            action_feasible = np.argwhere(self.q_table[state_id, :] > -np.inf).reshape([-1])
+            action_id = np.random.choice(action_feasible, 1).item()
+        else:
+            q_values = self.q_network(torch.FloatTensor(state_wgt))  # q_table lookup now changes to NN approximation
+            action_id = torch.argmax(q_values).item()
+
+        action_delta = self.action_possible[action_id]
+
+        # Get the distribution of next states and rewards for the current state and action
+        # reward_dist = rewards[next_state_dist]
+
+        # Get the next state from the distribution
+        next_state = self.get_next_state(state_wgt, action_delta)
+
+        if np.any(next_state <= 0):
+            next_state_id = state_id
+            reward = -1
+        else:
+            next_state_id = np.argwhere(np.all(self.state_possible == next_state, axis=1)).item()
+            reward = -expected_cost_total(state_wgt, state_wgt + action_delta, self.optimal_weight,
+                                          self.mu, self.sigma_mat, self.transaction_cost)
+
+        # Add the experience to the replay buffer
+        self.replay_buffer.append((state_id, action_id, next_state_id, reward))
+
+        # If the replay buffer is full, remove the oldest experience
+        if len(self.replay_buffer) > self.max_replay_buffer_size:
+            self.replay_buffer.pop(0)
+
+        # Sample a batch of experiences from the replay buffer
+        if len(self.replay_buffer) >= self.batch_size:
+            batch = random.sample(self.replay_buffer, self.batch_size)
+
+            # Calculate the Q-value targets for the batch using the Q network
+            states = np.zeros((self.batch_size, self.input_size))
+            q_targets = np.zeros((self.batch_size, self.output_size))
+            for k in range(self.batch_size):
+                state_id_k, action_id_k, next_state_id_k, reward_k = batch[k]
+                state_wgt_k = self.state_possible[state_id_k]
+                q_values_k = self.q_network(torch.FloatTensor(state_wgt_k))
+                q_targets_this_state_all_action = q_values_k.clone().detach().numpy()
+                q_targets_this_state_all_action[action_id_k] = reward_k + self.gamma * np.max(self.q_network(torch.FloatTensor(state_wgt_k)).detach().numpy())
+                q_targets[k] = q_targets_this_state_all_action
+                states[k] = state_wgt_k
+
+            # Update the Q network using the batch
+            self.optimizer.zero_grad()
+            loss = torch.tensor(0.)
+            for k in range(self.batch_size):
+                q_values = self.q_network(torch.FloatTensor(states[k]))
+                loss += nn.MSELoss()(q_values, torch.FloatTensor(q_targets[k]))
+            loss.backward()
+            self.optimizer.step()
+
+        # In this code, we sample a batch of experiences from the replay buffer using the random.sample function,
+        # and then calculate the Q-value targets for the batch using the Q network.
+        # We then update the Q network using the batch by calculating the loss and calling loss.backward() and optimizer.step().
+        # Finally, we update the epsilon value using the decay factor.
+        return next_state_id
+
+    def iterate(self, num_episodes=1000, max_steps_per_episode=100):
+        for i in range(num_episodes):
+            print("Epoch {}".format(i))
+            current_state = random.randint(0, self.num_states - 1)
+            for j in range(max_steps_per_episode):
+                current_state = self.network_training_once(current_state)
+
+
+dqn_result = {}
+for tc in [0, 0.0005, 0.001, 0.002]:
+    dqn = DQNlearning(mu, cov, tc, gamma=0.9, epsilon=0.1, learning_rate=0.001)
+    dqn.iterate(num_episodes=1000, max_steps_per_episode=100)
+    dqn_result[tc] = dqn
+
+
+x = self.state_possible[:, 0]
+dqn_action_df = pd.DataFrame(index=x)
+for tc, mo in dqn_result.items():
+    # visualize q table
+    action = []
+    for j in range(mo.state_possible.shape[0]):
+        qval = mo.q_network(torch.FloatTensor(mo.state_possible[j])).detach().numpy()
+        action.append(mo.action_possible[qval.argmax(), 0])
+
+    action = np.array(action)
+    dqn_action_df[f"TC: {tc * 1e4:.0f} bps"] = action
+
+dqn_action_df
+
+fig, ax = mpl.subplots(1, 1, figsize=(20, 10))
+ql_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
+bell_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dashed")
+dqn_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dotted")
+ax.set_xlabel("Weight on First Asset")
+ax.set_ylabel("Suggested Delta Weight on Asset 1")
+ax.axvline(optimal_weight[0], color="red", linestyle="dotted")
+ax.axhline(0, color="red", linestyle="dotted")
+ax.legend()
+mpl.tight_layout()
+mpl.show()

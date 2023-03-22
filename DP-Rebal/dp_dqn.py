@@ -228,6 +228,10 @@ for tc in [0, 0.0005, 0.001, 0.002]:
     qlearner.iterate(num_episodes = 10000, max_steps_per_episode = 1000)
     qmodel_result[tc] = qlearner
 
+# while True:
+#     for tc in [0.0005, 0.001, 0.002]:
+#         qlearner = qmodel_result[tc]
+#         qlearner.iterate(num_episodes = 10000, max_steps_per_episode = 1000)
 
 x = self.state_possible[:, 0]
 action_df = pd.DataFrame(index=x)
@@ -248,3 +252,4 @@ mpl.tight_layout()
 mpl.show()
 mpl.savefig(os.path.expanduser(f"~/Desktop/bell_qlearn.png"))
 mpl.close()
+

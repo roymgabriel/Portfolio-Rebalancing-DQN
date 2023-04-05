@@ -89,7 +89,7 @@ class BellmanValue:
         prob_on_wgt = scipy.stats.multivariate_normal.logpdf(ret_drift, mean=state_current[self.state_col_mu]/10000, cov=self.sigma_mat)
         prob_on_wgt -= prob_on_wgt.max()
 
-        mu_change = self.state_possible[:, self.state_col_mu] - state_current[self.state_col_mu]
+        # mu_change = self.state_possible[:, self.state_col_mu] - state_current[self.state_col_mu]
         x = np.arange(-400, 401, 5)
         mu_allow_neg = np.array(np.meshgrid(*([x] * self.num_asset))).T.reshape(-1, self.num_asset)
         prob_on_mu_change = scipy.stats.multivariate_normal.logpdf(mu_allow_neg, mean=state_current[self.state_col_mu], cov=self.mu_change_cov)
@@ -216,8 +216,8 @@ class DQNlearning(BellmanValue):
 
 
     def network_training_once(self, state_id):
-        input_size = self.num_states
-        output_size = self.num_actions
+        # input_size = self.num_states
+        # output_size = self.num_actions
 
         state_wgt = self.state_possible[state_id, :]
 
@@ -267,7 +267,7 @@ class DQNlearning(BellmanValue):
                 state_wgt_k = self.state_possible[state_id_k]
                 q_values_k = self.q_network(torch.FloatTensor(state_wgt_k))
                 q_targets_this_state_all_action = q_values_k.clone().detach().numpy()
-                q_targets_this_state_all_action[action_id_k] = reward_k + self.gamma * np.max(self.q_network(torch.FloatTensor(state_wgt_k)).detach().numpy())
+                q_targets_this_state_all_action[action_id_k] = reward_k + self.gamma * np.max(q_targets_this_state_all_action)
                 q_targets[k] = q_targets_this_state_all_action
                 states[k] = state_wgt_k
 
@@ -289,18 +289,30 @@ class DQNlearning(BellmanValue):
 
 if __name__ == '__main__':
 
-    num_asset = 2
-    mu = np.array([50, 200]) / 1e4
-    sigma = np.array([300, 800]) / 1e4
-    cov = np.diag(sigma ** 2)
-    start = dt.datetime(2000, 1, 1)
-    end = dt.datetime(2019, 12, 31)
-    dates = pd.date_range(start, end, freq="M")
-    ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
-    ret_df = pd.DataFrame(ret, index=dates)
+    df = pd.read_csv("../data/Data.csv", index_col=0)
+    df = df.apply(pd.to_numeric)
+    ret_df = df.pct_change()[1:]
+    print(ret_df.head())
+
+    # Initialize variables
+    num_asset = df.shape[1]
+    mu = ret_df.mean(axis=0).to_numpy()
+    cov = ret_df.cov()
+    sigma = np.diag(cov)
+    dates = pd.to_datetime(ret_df.index)
+
+#     num_asset = 2
+#     mu = np.array([50, 200]) / 1e4
+#     sigma = np.array([300, 800]) / 1e4
+#     cov = np.diag(sigma ** 2)
+#     start = dt.datetime(2000, 1, 1)
+#     end = dt.datetime(2019, 12, 31)
+#     dates = pd.date_range(start, end, freq="M")
+#     ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
+#     ret_df = pd.DataFrame(ret, index=dates)
     trans_cost = 10 / 1e4
     pvta_sd = np.array([50, 50])
-    mu_change_cov = np.diag(pvta_sd ** 2)
+    mu_change_cov = np.diag(pvta_sd ** 2) # TODO: Need explanation on this
 
     # self = bell = BellmanValue(mu, cov, mu_change_cov, trans_cost, gamma=0.9)
     # for dummy in range(200):

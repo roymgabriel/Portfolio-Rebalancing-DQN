@@ -6,6 +6,7 @@ import matplotlib.pyplot as mpl
 import scipy.stats as ss
 from scipy.optimize import minimize
 import random
+import tensorflow as tf
 
 mpl.rcParams.update({"font.size": 18})
 
@@ -129,40 +130,40 @@ cov = np.diag(sigma ** 2)
 optimal_weight = find_optimal_wgt(mu, cov)
 x0 = np.ones(len(mu)) / len(mu)
 
-model_result = {}
-for tc in [0, 0.0005, 0.001, 0.002]:
-    self = bell = BellmanValue(mu, cov, tc, gamma=0.9)
-    bell.iterate()
-    model_result[tc] = bell
+# model_result = {}
+# for tc in [0, 0.0005, 0.001, 0.002]:
+#     self = bell = BellmanValue(mu, cov, tc, gamma=0.9)
+#     bell.iterate()
+#     model_result[tc] = bell
 
-x = self.state_possible[:, 0]
-action_df = pd.DataFrame(index=x)
-action_bm_df = pd.DataFrame(index=x)
-for tc, bell in model_result.items():
-    # visualize q table
-    action = np.array([bell.action_possible[i, 0] for i in bell.q_table.argmax(axis=1)])
-    action_df[f"TC: {tc * 1e4:.0f} bps"] = action
-    action_bm = []
-    for i in x:
-        a = x[np.argmax([net_sharpe(np.array([j, 1 - j]), mu, cov, np.array([i, 1 - i]), tc) for j in x])] - i
-        action_bm.append(a)
-    action_bm = np.array(action_bm)
-    action_bm_df[f"TC: {tc * 1e4:.0f} bps BM"] = action_bm
-
-fig, ax = mpl.subplots(1, 1, figsize=(20, 10))
-action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
-action_bm_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dashed")
-ax.set_xlabel("Weight on First Asset")
-ax.set_ylabel("Suggested Delta Weight on Asset 1")
-ax.axvline(optimal_weight[0], color="red", linestyle="dotted")
-ax.axhline(0, color="red", linestyle="dotted")
-ax.legend()
-mpl.tight_layout()
-mpl.show()
-mpl.savefig(os.path.expanduser(f"~/Desktop/q_table.png"))
-mpl.close()
-
-bell_action_df = action_df.copy()
+# x = self.state_possible[:, 0]
+# action_df = pd.DataFrame(index=x)
+# action_bm_df = pd.DataFrame(index=x)
+# for tc, bell in model_result.items():
+#     # visualize q table
+#     action = np.array([bell.action_possible[i, 0] for i in bell.q_table.argmax(axis=1)])
+#     action_df[f"TC: {tc * 1e4:.0f} bps"] = action
+#     action_bm = []
+#     for i in x:
+#         a = x[np.argmax([net_sharpe(np.array([j, 1 - j]), mu, cov, np.array([i, 1 - i]), tc) for j in x])] - i
+#         action_bm.append(a)
+#     action_bm = np.array(action_bm)
+#     action_bm_df[f"TC: {tc * 1e4:.0f} bps BM"] = action_bm
+#
+# fig, ax = mpl.subplots(1, 1, figsize=(20, 10))
+# action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
+# action_bm_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dashed")
+# ax.set_xlabel("Weight on First Asset")
+# ax.set_ylabel("Suggested Delta Weight on Asset 1")
+# ax.axvline(optimal_weight[0], color="red", linestyle="dotted")
+# ax.axhline(0, color="red", linestyle="dotted")
+# ax.legend()
+# mpl.tight_layout()
+# mpl.show()
+# mpl.savefig(os.path.expanduser(f"~/Desktop/q_table.png"))
+# mpl.close()
+#
+# bell_action_df = action_df.copy()
 
 # Q-values
 # Q(s, a) = Q(s, a) + alpha * (r + gamma * max_a' Q(s', a') - Q(s, a))
@@ -222,36 +223,36 @@ class Qlearning(BellmanValue):
             for j in range(max_steps_per_episode):
                 current_state = self.q_learning_once(current_state)
 
-qmodel_result = {}
-for tc in [0, 0.0005, 0.001, 0.002]:
-    qlearner = Qlearning(mu, cov, tc, gamma=0.9, epsilon=0.1, learning_rate=0.1)
-    qlearner.iterate(num_episodes = 10000, max_steps_per_episode = 1000)
-    qmodel_result[tc] = qlearner
+# qmodel_result = {}
+# for tc in [0, 0.0005, 0.001, 0.002]:
+#     qlearner = Qlearning(mu, cov, tc, gamma=0.9, epsilon=0.1, learning_rate=0.1)
+#     qlearner.iterate(num_episodes = 10000, max_steps_per_episode = 1000)
+#     qmodel_result[tc] = qlearner
+#
+# # while True:
+# #     for tc in [0.0005, 0.001, 0.002]:
+# #         qlearner = qmodel_result[tc]
+# #         qlearner.iterate(num_episodes = 10000, max_steps_per_episode = 1000)
+#
+# x = self.state_possible[:, 0]
+# ql_action_df = pd.DataFrame(index=x)
+# for tc, mo in qmodel_result.items():
+#     # visualize q table
+#     action = np.array([mo.action_possible[i, 0] for i in mo.q_table.argmax(axis=1)])
+#     ql_action_df[f"TC: {tc * 1e4:.0f} bps"] = action
 
-# while True:
-#     for tc in [0.0005, 0.001, 0.002]:
-#         qlearner = qmodel_result[tc]
-#         qlearner.iterate(num_episodes = 10000, max_steps_per_episode = 1000)
-
-x = self.state_possible[:, 0]
-ql_action_df = pd.DataFrame(index=x)
-for tc, mo in qmodel_result.items():
-    # visualize q table
-    action = np.array([mo.action_possible[i, 0] for i in mo.q_table.argmax(axis=1)])
-    ql_action_df[f"TC: {tc * 1e4:.0f} bps"] = action
-
-fig, ax = mpl.subplots(1, 1, figsize=(20, 10))
-ql_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
-bell_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dashed")
-ax.set_xlabel("Weight on First Asset")
-ax.set_ylabel("Suggested Delta Weight on Asset 1")
-ax.axvline(optimal_weight[0], color="red", linestyle="dotted")
-ax.axhline(0, color="red", linestyle="dotted")
-ax.legend()
-mpl.tight_layout()
-mpl.show()
-mpl.savefig(os.path.expanduser(f"~/Desktop/bell_qlearn.png"))
-mpl.close()
+# fig, ax = mpl.subplots(1, 1, figsize=(20, 10))
+# ql_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
+# bell_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dashed")
+# ax.set_xlabel("Weight on First Asset")
+# ax.set_ylabel("Suggested Delta Weight on Asset 1")
+# ax.axvline(optimal_weight[0], color="red", linestyle="dotted")
+# ax.axhline(0, color="red", linestyle="dotted")
+# ax.legend()
+# mpl.tight_layout()
+# mpl.show()
+# mpl.savefig(os.path.expanduser(f"~/Desktop/bell_qlearn.png"))
+# mpl.close()
 
 
 # DQN is a variant of Q-learning that uses a neural network to estimate the Q-values instead of a table.
@@ -297,10 +298,11 @@ class DQNlearning(Qlearning):
         self.max_replay_buffer_size = 100000
         self.batch_size = 32
 
-    def network_training_once(self, state_id):
-        input_size = self.num_states
-        output_size = self.num_actions
+        # add loss
+        self.loss = torch.tensor(0.)
+        self.huber_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM)
 
+    def network_training_once(self, state_id):
         state_wgt = self.state_possible[state_id, :]
 
         # Choose the action using an epsilon-greedy policy
@@ -344,22 +346,30 @@ class DQNlearning(Qlearning):
             states = np.zeros((self.batch_size, self.input_size))
             q_targets = np.zeros((self.batch_size, self.output_size))
             for k in range(self.batch_size):
+                # TODO: Can possibly not loop through batch_size but instead sample an entire batch immediately
+                # like in CartPole
+
+                # get batch sample
                 state_id_k, action_id_k, next_state_id_k, reward_k = batch[k]
+                # get possible states at batch k
                 state_wgt_k = self.state_possible[state_id_k]
-                q_values_k = self.q_network(torch.FloatTensor(state_wgt_k))
+                # compute target Q values
+                q_values_k = self.q_network(torch.FloatTensor(state_wgt_k))  # next Q-Value
                 q_targets_this_state_all_action = q_values_k.clone().detach().numpy()
-                q_targets_this_state_all_action[action_id_k] = reward_k + self.gamma * np.max(self.q_network(torch.FloatTensor(state_wgt_k)).detach().numpy())
-                q_targets[k] = q_targets_this_state_all_action
+                q_targets_this_state_all_action[action_id_k] = reward_k + self.gamma * np.max(q_targets_this_state_all_action)
+                q_targets[k] = q_targets_this_state_all_action  # target Q-Value
                 states[k] = state_wgt_k
 
             # Update the Q network using the batch
-            self.optimizer.zero_grad()
-            loss = torch.tensor(0.)
+            self.loss = torch.tensor(0.)
             for k in range(self.batch_size):
                 q_values = self.q_network(torch.FloatTensor(states[k]))
-                loss += nn.MSELoss()(q_values, torch.FloatTensor(q_targets[k]))
-            loss.backward()
+                self.loss += nn.SmoothL1Loss()(q_values, torch.FloatTensor(q_targets[k]))
+            self.optimizer.zero_grad()
+            self.loss.backward()
             self.optimizer.step()
+
+
 
         # In this code, we sample a batch of experiences from the replay buffer using the random.sample function,
         # and then calculate the Q-value targets for the batch using the Q network.
@@ -369,7 +379,7 @@ class DQNlearning(Qlearning):
 
     def iterate(self, num_episodes=1000, max_steps_per_episode=100):
         for i in range(num_episodes):
-            print("Epoch {}".format(i))
+            print(f"Epoch {i}: Loss = {self.loss.item()}")
             current_state = random.randint(0, self.num_states - 1)
             for j in range(max_steps_per_episode):
                 current_state = self.network_training_once(current_state)
@@ -378,7 +388,7 @@ class DQNlearning(Qlearning):
 dqn_result = {}
 for tc in [0, 0.0005, 0.001, 0.002]:
     dqn = DQNlearning(mu, cov, tc, gamma=0.9, epsilon=0.1, learning_rate=0.001)
-    dqn.iterate(num_episodes=1000, max_steps_per_episode=100)
+    dqn.iterate(num_episodes=100, max_steps_per_episode=100)
     dqn_result[tc] = dqn
 
 # while True:
@@ -386,7 +396,7 @@ for tc in [0, 0.0005, 0.001, 0.002]:
 #         dqn = qmodel_result[tc]
 #         dqn.iterate(num_episodes = 10000, max_steps_per_episode = 1000)
 
-x = self.state_possible[:, 0]
+x = dqn.state_possible[:, 0]
 dqn_action_df = pd.DataFrame(index=x)
 for tc, mo in dqn_result.items():
     # visualize q table
@@ -398,11 +408,11 @@ for tc, mo in dqn_result.items():
     action = np.array(action)
     dqn_action_df[f"TC: {tc * 1e4:.0f} bps"] = action
 
-dqn_action_df
+print(dqn_action_df)
 
 fig, ax = mpl.subplots(1, 1, figsize=(20, 10))
-ql_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
-bell_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dashed")
+# ql_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
+# bell_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dashed")
 dqn_action_df.plot(ax=ax, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'], linestyle="dotted")
 ax.set_xlabel("Weight on First Asset")
 ax.set_ylabel("Suggested Delta Weight on Asset 1")

@@ -289,7 +289,7 @@ class DQNlearning(BellmanValue):
 
 if __name__ == '__main__':
 
-    df = pd.read_csv("../data/Data.csv", index_col=0)
+    df = pd.read_csv("./data/Data.csv", index_col=0)
     df = df.apply(pd.to_numeric)
     ret_df = df.pct_change()[1:]
     print(ret_df.head())
@@ -301,15 +301,15 @@ if __name__ == '__main__':
     sigma = np.diag(cov)
     dates = pd.to_datetime(ret_df.index)
 
-#     num_asset = 2
-#     mu = np.array([50, 200]) / 1e4
-#     sigma = np.array([300, 800]) / 1e4
-#     cov = np.diag(sigma ** 2)
-#     start = dt.datetime(2000, 1, 1)
-#     end = dt.datetime(2019, 12, 31)
-#     dates = pd.date_range(start, end, freq="M")
-#     ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
-#     ret_df = pd.DataFrame(ret, index=dates)
+    #     num_asset = 2
+    #     mu = np.array([50, 200]) / 1e4
+    #     sigma = np.array([300, 800]) / 1e4
+    #     cov = np.diag(sigma ** 2)
+    #     start = dt.datetime(2000, 1, 1)
+    #     end = dt.datetime(2019, 12, 31)
+    #     dates = pd.date_range(start, end, freq="M")
+    #     ret = np.random.multivariate_normal(mu / 12, cov / 12, size=len(dates))
+    #     ret_df = pd.DataFrame(ret, index=dates)
     trans_cost = 10 / 1e4
     pvta_sd = np.array([50, 50])
     mu_change_cov = np.diag(pvta_sd ** 2) # TODO: Need explanation on this
